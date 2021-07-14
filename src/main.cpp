@@ -5,6 +5,8 @@
  * then off for one second, repeatedly.
  */
 #include "Arduino.h"
+#include "Adafruit_Soundboard.h"
+#include <HCSR04.h>
 
 /* Enable serial debugging */
 #define DEBUG 1
@@ -14,6 +16,11 @@
 #define LED_BUILTIN 13
 #endif
 #define SOUND_RESET 12
+#define TRIGGER 11
+#define ECHO 10
+
+Adafruit_Soundboard sfx = Adafruit_Soundboard(&Serial1, NULL, SOUND_RESET);
+UltraSonicDistanceSensor sensor = UltraSonicDistanceSensor(TRIGGER, ECHO);
 
 void log(const char *str) {
     if(DEBUG) {
@@ -21,12 +28,26 @@ void log(const char *str) {
     }
 }
 
-void setup()
-{
+void logFileList() {
+    uint8_t files = sfx.listFiles();
+
+    Serial.print("Found "); Serial.print(files); Serial.println(" files");
+    Serial.println("========================");
+    for (uint8_t f=0; f<files; f++) {
+        Serial.print(f); 
+        Serial.print("\tname: "); Serial.print(sfx.fileName(f));
+        Serial.print("\tsize: "); Serial.println(sfx.fileSize(f));
+    }
+    Serial.println("========================");
+}
+
+void setup() {
     if (DEBUG) {
-        Serial.begin(9600);
-        while (!Serial) {
+        Serial.begin(115200);
+        int timeout = 100;
+        while (!Serial && timeout) {
             delay(10); // wait for serial port to connect. Needed for native USB
+            timeout--;
         }
     }
 
@@ -40,27 +61,20 @@ void setup()
 
     /* Start sound board serial */
     Serial1.begin(9600);
+  
+    if (!sfx.reset()) {
+        Serial.println("Soundboard didn't reset");
+        while (1);
+    }
+    Serial.println("Soundboard reset");
 
-    /* Reset sound board */
-    digitalWrite(SOUND_RESET, LOW);
-    pinMode(SOUND_RESET, OUTPUT);
-    delay(10);
-    pinMode(SOUND_RESET, INPUT);
-    delay(1000);
+    logFileList();
 }
 
-void loop()
-{
-    digitalWrite(LED_BUILTIN, HIGH);
+void loop() {
+    log("Playing audio");
 
-    Serial1.println("#0");
+    sfx.playTrack((uint8_t) 0);
 
-    // wait for a second
-    delay(500);
-
-    // turn the LED off by making the voltage LOW
-    digitalWrite(LED_BUILTIN, LOW);
-
-    // wait for a second
-    delay(500);
+    delay(1000);
 }
